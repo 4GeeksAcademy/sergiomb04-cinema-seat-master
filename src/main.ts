@@ -127,12 +127,12 @@ if (typeof document !== "undefined") {
     }
 
     // Calcula el resumen de ocupacion actual de la sala.
-    function getCurrentStatus() {
+    function getCurrentStatus(): [number, number, number] {
       const occupied = asientos.flat().filter(valor => valor === 1).length;
       const total = numeroFilas * numeroColumnas;
       const free = total - occupied;
 
-      return { occupied, free, total };
+      return [occupied, free, total];
     }
 
     // Busca la primera pareja de asientos contiguos libres en horizontal.
@@ -153,7 +153,7 @@ if (typeof document !== "undefined") {
 
     // Recalcula estado y delega el pintado de toda la UI al modulo de render.
     function render() {
-      const { occupied, free, total } = getCurrentStatus();
+      const [ occupied, free, total ] = getCurrentStatus();
 
       renderCinemaApp({
         appRoot,
