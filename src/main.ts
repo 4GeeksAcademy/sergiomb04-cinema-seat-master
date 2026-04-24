@@ -1,5 +1,67 @@
 import { renderCinemaApp } from "./renderCinemaApp";
 
+type SeatMatrix = number[][];
+
+const TEST_FILAS = 8;
+const TEST_COLUMNAS = 10;
+
+// Imprime una matriz de asientos 8x10 con cabeceras de filas (A-H) y columnas (1-10).
+function printCinemaSeatingMatrix(matrix: SeatMatrix): void {
+  if (matrix.length !== TEST_FILAS) {
+    throw new Error(`La matriz debe tener ${TEST_FILAS} filas.`);
+  }
+
+  for (let i = 0; i < TEST_FILAS; i++) {
+    if (matrix[i].length !== TEST_COLUMNAS) {
+      throw new Error(`La fila ${i + 1} debe tener ${TEST_COLUMNAS} columnas.`);
+    }
+  }
+
+  const columnHeader = ["   ", ...Array.from({ length: TEST_COLUMNAS }, (_, i) => String(i + 1).padStart(2, " "))].join(" ");
+  console.log(columnHeader);
+
+  for (let i = 0; i < TEST_FILAS; i++) {
+    const rowLabel = String.fromCharCode(65 + i);
+    const rowSeats = matrix[i].map(valor => (valor === 1 ? " X" : " L")).join(" ");
+    console.log(`${rowLabel} |${rowSeats}`);
+  }
+}
+
+// Ejecuta ejemplos de consola para sala vacia, parcial y completa.
+function runConsoleMatrixExamples(): void {
+  const emptyMatrix: SeatMatrix = Array.from({ length: TEST_FILAS }, () =>
+    Array.from({ length: TEST_COLUMNAS }, () => 0),
+  );
+
+  const partialMatrix: SeatMatrix = [
+    [0, 1, 0, 0, 1, 0, 0, 0, 1, 0],
+    [0, 0, 0, 1, 1, 0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+    [0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
+    [0, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0, 1, 0, 0, 1, 0],
+    [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+  ];
+
+  const fullMatrix: SeatMatrix = Array.from({ length: TEST_FILAS }, () =>
+    Array.from({ length: TEST_COLUMNAS }, () => 1),
+  );
+
+  console.log("\n=== TEST: SALA VACIA ===");
+  printCinemaSeatingMatrix(emptyMatrix);
+
+  console.log("\n=== TEST: SALA PARCIAL ===");
+  printCinemaSeatingMatrix(partialMatrix);
+
+  console.log("\n=== TEST: SALA LLENA ===");
+  printCinemaSeatingMatrix(fullMatrix);
+}
+
+if (typeof document === "undefined") {
+  runConsoleMatrixExamples();
+}
+
 if (typeof document !== "undefined") {
   import("./style.css").then(() => {
     const app = document.querySelector<HTMLElement>("#app");
