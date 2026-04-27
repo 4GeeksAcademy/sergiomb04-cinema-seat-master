@@ -84,7 +84,7 @@ if (typeof document !== "undefined") {
 
     let salas: Sala[] = [];
     let activeSalaId = "";
-    let mensaje = "Pulsa sobre un asiento libre para reservarlo.";
+    let toastTimeout: ReturnType<typeof window.setTimeout> | null = null;
 
     // Crea una sala vacia con todos los asientos en estado libre (0).
     function createEmptyMatrix(): number[][] {
@@ -141,11 +141,30 @@ if (typeof document !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
+    function showToast(text: string) {
+      const toast = appRoot.querySelector<HTMLElement>("#toast");
+      if (!toast) return;
+
+      toast.textContent = text;
+
+      toast.classList.remove("toast-show");
+      void toast.offsetWidth;
+      toast.classList.add("toast-show");
+
+      if (toastTimeout) {
+        window.clearTimeout(toastTimeout);
+      }
+
+      toastTimeout = window.setTimeout(() => {
+        toast.classList.remove("toast-show");
+      }, 2600);
+    }
+
     function loadState() {
       const rawState = localStorage.getItem(STORAGE_KEY);
 
       if (!rawState) {
-        const salaInicial = createSala("Sala 1", true);
+        const salaInicial = createSala("Sala 1", false);
         salas = [salaInicial];
         activeSalaId = salaInicial.id;
         saveState();
@@ -166,7 +185,7 @@ if (typeof document !== "undefined") {
           : [];
 
         if (parsedSalas.length === 0) {
-          const salaInicial = createSala("Sala 1", true);
+          const salaInicial = createSala("Sala 1", false);
           salas = [salaInicial];
           activeSalaId = salaInicial.id;
           saveState();
@@ -180,7 +199,7 @@ if (typeof document !== "undefined") {
 
         activeSalaId = hasActiveSala ? parsedActiveSalaId : parsedSalas[0].id;
       } catch {
-        const salaInicial = createSala("Sala 1", true);
+        const salaInicial = createSala("Sala 1", false);
         salas = [salaInicial];
         activeSalaId = salaInicial.id;
         saveState();
@@ -257,7 +276,6 @@ if (typeof document !== "undefined") {
         numeroFilas,
         numeroColumnas,
         asientos: salaActiva.asientos,
-        mensaje,
         salas: salas.map(sala => ({ id: sala.id, nombre: sala.nombre })),
         activeSalaId,
         occupied,
@@ -267,79 +285,70 @@ if (typeof document !== "undefined") {
         onSelectSala: (salaId: string) => {
           const exists = salas.some(sala => sala.id === salaId);
           if (!exists) {
-            mensaje = "Error: la sala seleccionada no existe.";
-            render();
+            showToast("Error: la sala seleccionada no existe.");
             return;
           }
 
           activeSalaId = salaId;
           const selectedSala = getActiveSala();
-          mensaje = `Sala activa: ${selectedSala.nombre}.`;
           saveState();
           render();
+          showToast(`Sala activa: ${selectedSala.nombre}.`);
         },
         onCreateSala: (nombre: string) => {
           const roomName = nombre.trim();
 
           if (!roomName) {
-            mensaje = "Escribe un nombre para crear la sala.";
-            render();
+            showToast("Escribe un nombre para crear la sala.");
             return;
           }
 
           const newSala = createSala(roomName, false);
           salas.push(newSala);
           activeSalaId = newSala.id;
-          mensaje = `Sala creada: ${newSala.nombre}.`;
           saveState();
           render();
+          showToast(`Sala creada: ${newSala.nombre}.`);
         },
         onDeleteSala: (salaId: string) => {
           const sala = salas.find(item => item.id === salaId);
           if (!sala) {
-            mensaje = "Error: la sala no existe.";
-            render();
+            showToast("Error: la sala no existe.");
             return;
           }
 
           if (salas.length === 1) {
-            mensaje = "No puedes eliminar la unica sala disponible.";
-            render();
+            showToast("No puedes eliminar la unica sala disponible.");
             return;
           }
 
           const shouldDelete = window.confirm(`Quieres eliminar la sala \"${sala.nombre}\"?`);
           if (!shouldDelete) {
-            mensaje = "Eliminacion cancelada.";
-            render();
+            showToast("Eliminacion cancelada.");
             return;
           }
 
+          const wasActiveSalaDeleted = activeSalaId === salaId;
           salas = salas.filter(item => item.id !== salaId);
 
-          if (activeSalaId === salaId) {
+          if (wasActiveSalaDeleted) {
             activeSalaId = salas[0].id;
-            mensaje = `Sala eliminada. Activa: ${salas[0].nombre}.`;
-          } else {
-            mensaje = `Sala eliminada: ${sala.nombre}.`;
           }
 
           saveState();
           render();
+          if (wasActiveSalaDeleted) {
+            showToast(`Sala eliminada. Activa: ${salas[0].nombre}.`);
+          } else {
+            showToast(`Sala eliminada: ${sala.nombre}.`);
+          }
         },
         onReset: () => {
           const salaSeleccionada = getActiveSala();
           salaSeleccionada.asientos = createEmptyMatrix();
-          mensaje = `Sala ${salaSeleccionada.nombre} restablecida: todos los asientos estan libres.`;
           saveState();
           render();
-        },
-        onLoadExample: () => {
-          const salaSeleccionada = getActiveSala();
-          salaSeleccionada.asientos = createExampleMatrix();
-          mensaje = `Se cargo la distribucion de ejemplo en ${salaSeleccionada.nombre}.`;
-          saveState();
-          render();
+          showToast(`Sala ${salaSeleccionada.nombre} restablecida: todos los asientos estan libres.`);
         },
         onSeatClick: (fila: number, columna: number) => {
           const salaSeleccionada = getActiveSala();
@@ -349,15 +358,19 @@ if (typeof document !== "undefined") {
             const seatCode = `${String.fromCharCode(65 + fila)}${columna + 1}`;
             const shouldRelease = window.confirm(`El asiento ${seatCode} esta ocupado. Quieres liberarlo?`);
 
-            mensaje = shouldRelease
-              ? liberarAsiento(fila, columna)
-              : "Operacion cancelada: el asiento se mantiene reservado.";
-            render();
+            if (shouldRelease) {
+              const releaseMessage = liberarAsiento(fila, columna);
+              render();
+              showToast(releaseMessage);
+            } else {
+              showToast("Operacion cancelada: el asiento se mantiene reservado.");
+            }
             return;
           }
 
-          mensaje = reservarAsiento(fila, columna);
+          const reserveMessage = reservarAsiento(fila, columna);
           render();
+          showToast(reserveMessage);
         },
       });
     }

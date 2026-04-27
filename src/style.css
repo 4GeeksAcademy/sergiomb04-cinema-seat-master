@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+:root {
+	--page-bg-top: #edf4ee;
+	--page-bg-bottom: #d9e7de;
+	--ink: #183a32;
+	--toast-bg: #173c34;
+	--toast-ink: #f3fff8;
+}
+
+body {
+	min-height: 100vh;
+	font-family: "Trebuchet MS", "Segoe UI", "Calibri", sans-serif;
+	color: var(--ink);
+	background:
+		radial-gradient(circle at 12% 10%, rgba(45, 119, 96, 0.22), transparent 40%),
+		radial-gradient(circle at 90% 88%, rgba(206, 152, 83, 0.2), transparent 38%),
+		linear-gradient(170deg, var(--page-bg-top), var(--page-bg-bottom));
+}
+
+h1,
+h2,
+h3 {
+	font-family: "Franklin Gothic Medium", "Arial Narrow", "Segoe UI", sans-serif;
+}
+
+#app {
+	padding: 1.2rem;
+}
+
+.cinema-aurora {
+	position: absolute;
+	inset: -160px auto auto -180px;
+	width: 390px;
+	height: 390px;
+	border-radius: 9999px;
+	background: radial-gradient(circle at center, rgba(58, 154, 121, 0.18), transparent 64%);
+	filter: blur(4px);
+	pointer-events: none;
+}
+
+.toast {
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	max-width: min(92vw, 360px);
+	border-radius: 12px;
+	border: 1px solid rgba(240, 255, 248, 0.32);
+	background: var(--toast-bg);
+	color: var(--toast-ink);
+	padding: 0.75rem 1rem;
+	font-size: 0.92rem;
+	line-height: 1.25rem;
+	box-shadow: 0 20px 30px rgba(19, 44, 38, 0.24);
+	opacity: 0;
+	transform: translateY(14px);
+	pointer-events: none;
+}
+
+.toast-show {
+	animation: toast-in-out 2500ms ease forwards;
+}
+
+@keyframes toast-in-out {
+	0% {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+
+	12% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	82% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	100% {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+
+@media (max-width: 640px) {
+	#app {
+		padding: 0.75rem;
+	}
+
+	.toast {
+		right: 0.75rem;
+		left: 0.75rem;
+		bottom: 0.75rem;
+		max-width: none;
+	}
+}

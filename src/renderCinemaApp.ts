@@ -9,7 +9,6 @@ type RenderCinemaAppParams = {
   numeroFilas: number;
   numeroColumnas: number;
   asientos: number[][];
-  mensaje: string;
   salas: RoomSummary[];
   activeSalaId: string;
   occupied: number;
@@ -20,7 +19,6 @@ type RenderCinemaAppParams = {
   onCreateSala: (nombre: string) => void;
   onDeleteSala: (salaId: string) => void;
   onReset: () => void;
-  onLoadExample: () => void;
   onSeatClick: (fila: number, columna: number) => void;
 };
 
@@ -47,7 +45,6 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
     numeroFilas,
     numeroColumnas,
     asientos,
-    mensaje,
     salas,
     activeSalaId,
     occupied,
@@ -58,7 +55,6 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
     onCreateSala,
     onDeleteSala,
     onReset,
-    onLoadExample,
     onSeatClick,
   } = params;
 
@@ -93,25 +89,26 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
     .join("");
 
   appRoot.innerHTML = `
-      <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
-        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-5 text-white">
-          <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Mapa de Asientos del Cine</h1>
-          <p class="mt-1 text-sm text-slate-300">Visualiza disponibilidad, reserva y restablece la sala.</p>
+      <section class="cinema-shell relative overflow-hidden rounded-3xl border border-[#d7ded9] bg-[#f7f6ef] shadow-[0_24px_60px_rgba(24,39,35,0.18)]">
+        <div class="cinema-aurora"></div>
+        <div class="relative border-b border-[#d7ded9] bg-gradient-to-r from-[#17342f] via-[#1f4e45] to-[#17342f] px-6 py-6 text-[#f8f7f0]">
+          <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Gestor de Salas</h1>
+          <p class="mt-1 text-sm text-[#d8e7e3]">Administra salas y reservas de asientos en local.</p>
         </div>
 
-        <div class="grid gap-6 p-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div class="relative grid gap-6 p-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           <aside class="space-y-4">
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Salas</h2>
+            <div class="rounded-2xl border border-[#d5ddd8] bg-[#fcfbf7] p-4 shadow-sm">
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-[#31574f]">Salas</h2>
               <div class="mt-3 flex gap-2">
                 <input
                   id="new-room-input"
                   type="text"
                   maxlength="40"
-                  class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-500"
+                  class="min-w-0 flex-1 rounded-lg border border-[#c3d0ca] bg-white px-3 py-2 text-sm text-[#1e3f38] outline-none transition focus:border-[#2f7a6d]"
                   placeholder="Nombre de sala"
                 />
-                <button id="create-room-btn" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+                <button id="create-room-btn" class="rounded-lg bg-[#1f5b51] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#17483f]">
                   Crear
                 </button>
               </div>
@@ -119,54 +116,52 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
               <ul class="mt-3 space-y-2">${roomsHtml}</ul>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Estado general</h2>
+            <div class="rounded-2xl border border-[#d5ddd8] bg-[#fcfbf7] p-4 shadow-sm">
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-[#31574f]">Estado general</h2>
               <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                <div class="rounded-xl bg-emerald-100 p-3">
-                  <p class="text-emerald-700">Libres</p>
-                  <p class="text-xl font-bold text-emerald-900">${free}</p>
+                <div class="rounded-xl bg-[#dff3e7] p-3">
+                  <p class="text-[#2c6f53]">Libres</p>
+                  <p class="text-xl font-bold text-[#0d4e35]">${free}</p>
                 </div>
-                <div class="rounded-xl bg-rose-100 p-3">
-                  <p class="text-rose-700">Ocupados</p>
-                  <p class="text-xl font-bold text-rose-900">${occupied}</p>
+                <div class="rounded-xl bg-[#ffe3de] p-3">
+                  <p class="text-[#aa4a37]">Ocupados</p>
+                  <p class="text-xl font-bold text-[#7f2e1f]">${occupied}</p>
                 </div>
-                <div class="col-span-2 rounded-xl bg-slate-200 p-3">
-                  <p class="text-slate-700">Ocupacion</p>
-                  <p class="text-xl font-bold text-slate-900">${occupancy}% (${occupied}/${total})</p>
+                <div class="col-span-2 rounded-xl bg-[#e9ece6] p-3">
+                  <p class="text-[#38544d]">Ocupacion</p>
+                  <p class="text-xl font-bold text-[#183730]">${occupancy}% (${occupied}/${total})</p>
                 </div>
               </div>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 p-4">
-              <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Leyenda</h2>
-              <ul class="mt-3 space-y-2 text-sm text-slate-700">
+            <div class="flex flex-wrap gap-2">
+              <button id="reset-btn" class="rounded-xl bg-[#173b33] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#102c26]">
+                Restablecer sala
+              </button>
+            </div>
+          </aside>
+
+          <div class="rounded-2xl border border-[#d5ddd8] bg-[#faf9f4] p-4 shadow-sm">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p class="text-xs uppercase tracking-wide text-[#406258]">Mapa interactivo</p>
+              <ul class="flex flex-wrap items-center gap-3 text-xs font-medium text-[#2c4b43]">
                 <li class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-emerald-500"></span>Libre</li>
                 <li class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-rose-500"></span>Ocupado</li>
                 <li class="flex items-center gap-2"><span class="h-3 w-3 rounded-full bg-amber-400"></span>Pareja sugerida</li>
               </ul>
             </div>
 
-            <div class="flex flex-wrap gap-2">
-              <button id="reset-btn" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
-                Restablecer sala
-              </button>
-              <button id="example-btn" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                Cargar ejemplo
-              </button>
+            <div class="overflow-x-auto rounded-2xl border border-[#d7ded9] bg-white/80 p-4">
+              <svg id="seat-map" class="mx-auto h-auto min-w-[560px] max-w-full" role="img" aria-label="Mapa de asientos"></svg>
             </div>
-
-            <p id="message" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">${mensaje}</p>
-          </aside>
-
-          <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <svg id="seat-map" class="mx-auto h-auto min-w-[560px] max-w-full" role="img" aria-label="Mapa de asientos"></svg>
           </div>
         </div>
+
+        <div id="toast" role="status" aria-live="polite" class="toast"></div>
       </section>
     `;
 
   const resetBtn = appRoot.querySelector<HTMLButtonElement>("#reset-btn");
-  const exampleBtn = appRoot.querySelector<HTMLButtonElement>("#example-btn");
   const createRoomBtn = appRoot.querySelector<HTMLButtonElement>("#create-room-btn");
   const newRoomInput = appRoot.querySelector<HTMLInputElement>("#new-room-input");
   const roomSelectButtons = appRoot.querySelectorAll<HTMLButtonElement>(".room-select-btn");
@@ -205,10 +200,6 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
 
   if (resetBtn) {
     resetBtn.addEventListener("click", onReset);
-  }
-
-  if (exampleBtn) {
-    exampleBtn.addEventListener("click", onLoadExample);
   }
 
   if (!seatMap) return;
