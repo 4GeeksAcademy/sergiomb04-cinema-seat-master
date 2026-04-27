@@ -4,6 +4,13 @@ type RoomSummary = {
   nombre: string;
 };
 
+type ConfirmDialogView = {
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+} | null;
+
 type RenderCinemaAppParams = {
   appRoot: HTMLElement;
   numeroFilas: number;
@@ -11,10 +18,13 @@ type RenderCinemaAppParams = {
   asientos: number[][];
   salas: RoomSummary[];
   activeSalaId: string;
+  confirmDialog: ConfirmDialogView;
   occupied: number;
   free: number;
   total: number;
   suggestion: SeatPair;
+  onConfirmDialogAccept: () => void;
+  onConfirmDialogCancel: () => void;
   onSelectSala: (salaId: string) => void;
   onCreateSala: (nombre: string) => void;
   onDeleteSala: (salaId: string) => void;
@@ -47,10 +57,13 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
     asientos,
     salas,
     activeSalaId,
+    confirmDialog,
     occupied,
     free,
     total,
     suggestion,
+    onConfirmDialogAccept,
+    onConfirmDialogCancel,
     onSelectSala,
     onCreateSala,
     onDeleteSala,
@@ -158,6 +171,26 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
         </div>
 
         <div id="toast" role="status" aria-live="polite" class="toast"></div>
+
+        ${confirmDialog
+    ? `
+          <div class="confirm-overlay fixed inset-0 z-40 flex items-center justify-center bg-[#10251f]/55 p-4 backdrop-blur-[1.5px]">
+            <div class="w-full max-w-md rounded-2xl border border-[#c7d4ce] bg-[#fffef9] p-5 shadow-[0_24px_46px_rgba(12,36,30,0.28)]">
+              <h3 class="text-xl font-bold text-[#1d3f37]">${escapeHtml(confirmDialog.title)}</h3>
+              <p class="mt-2 text-sm text-[#35574e]">${escapeHtml(confirmDialog.message)}</p>
+
+              <div class="mt-5 flex flex-wrap justify-end gap-2">
+                <button id="confirm-cancel-btn" class="rounded-lg border border-[#c3d1cb] bg-white px-4 py-2 text-sm font-medium text-[#22463e] transition hover:bg-[#f2f6f4]">
+                  ${escapeHtml(confirmDialog.cancelText)}
+                </button>
+                <button id="confirm-accept-btn" class="rounded-lg bg-[#1c5b4f] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#15463d]">
+                  ${escapeHtml(confirmDialog.confirmText)}
+                </button>
+              </div>
+            </div>
+          </div>
+        `
+    : ""}
       </section>
     `;
 
@@ -166,6 +199,8 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
   const newRoomInput = appRoot.querySelector<HTMLInputElement>("#new-room-input");
   const roomSelectButtons = appRoot.querySelectorAll<HTMLButtonElement>(".room-select-btn");
   const roomDeleteButtons = appRoot.querySelectorAll<HTMLButtonElement>(".room-delete-btn");
+  const confirmAcceptBtn = appRoot.querySelector<HTMLButtonElement>("#confirm-accept-btn");
+  const confirmCancelBtn = appRoot.querySelector<HTMLButtonElement>("#confirm-cancel-btn");
   const seatMap = appRoot.querySelector<SVGSVGElement>("#seat-map");
 
   if (createRoomBtn) {
@@ -200,6 +235,14 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
 
   if (resetBtn) {
     resetBtn.addEventListener("click", onReset);
+  }
+
+  if (confirmAcceptBtn) {
+    confirmAcceptBtn.addEventListener("click", onConfirmDialogAccept);
+  }
+
+  if (confirmCancelBtn) {
+    confirmCancelBtn.addEventListener("click", onConfirmDialogCancel);
   }
 
   if (!seatMap) return;
