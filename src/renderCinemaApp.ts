@@ -1,4 +1,8 @@
 type SeatPair = [number, number][] | null;
+type RoomSummary = {
+  id: string;
+  nombre: string;
+};
 
 type RenderCinemaAppParams = {
   appRoot: HTMLElement;
@@ -6,10 +10,15 @@ type RenderCinemaAppParams = {
   numeroColumnas: number;
   asientos: number[][];
   mensaje: string;
+  salas: RoomSummary[];
+  activeSalaId: string;
   occupied: number;
   free: number;
   total: number;
   suggestion: SeatPair;
+  onSelectSala: (salaId: string) => void;
+  onCreateSala: (nombre: string) => void;
+  onDeleteSala: (salaId: string) => void;
   onReset: () => void;
   onLoadExample: () => void;
   onSeatClick: (fila: number, columna: number) => void;
@@ -22,6 +31,15 @@ function isSuggestedSeat(suggestion: SeatPair, fila: number, columna: number): b
   return suggestion.some(([row, col]) => row === fila && col === columna);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Renderiza el layout principal y dibuja el mapa SVG a partir del estado recibido.
 export function renderCinemaApp(params: RenderCinemaAppParams) {
   const {
@@ -30,10 +48,15 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
     numeroColumnas,
     asientos,
     mensaje,
+    salas,
+    activeSalaId,
     occupied,
     free,
     total,
     suggestion,
+    onSelectSala,
+    onCreateSala,
+    onDeleteSala,
     onReset,
     onLoadExample,
     onSeatClick,
@@ -41,6 +64,33 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
 
   const svgNs = "http://www.w3.org/2000/svg";
   const occupancy = ((occupied / total) * 100).toFixed(1);
+  const roomsHtml = salas
+    .map((sala) => {
+      const activeClass = sala.id === activeSalaId
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100";
+
+      return `
+        <li class="flex gap-2">
+          <button
+            type="button"
+            class="room-select-btn flex-1 rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${activeClass}"
+            data-room-id="${sala.id}"
+          >
+            ${escapeHtml(sala.nombre)}
+          </button>
+          <button
+            type="button"
+            class="room-delete-btn rounded-lg border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+            data-room-id="${sala.id}"
+            ${salas.length === 1 ? "disabled" : ""}
+          >
+            Eliminar
+          </button>
+        </li>
+      `;
+    })
+    .join("");
 
   appRoot.innerHTML = `
       <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
@@ -51,6 +101,24 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
 
         <div class="grid gap-6 p-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside class="space-y-4">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Salas</h2>
+              <div class="mt-3 flex gap-2">
+                <input
+                  id="new-room-input"
+                  type="text"
+                  maxlength="40"
+                  class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-500"
+                  placeholder="Nombre de sala"
+                />
+                <button id="create-room-btn" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+                  Crear
+                </button>
+              </div>
+
+              <ul class="mt-3 space-y-2">${roomsHtml}</ul>
+            </div>
+
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Estado general</h2>
               <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
@@ -99,7 +167,41 @@ export function renderCinemaApp(params: RenderCinemaAppParams) {
 
   const resetBtn = appRoot.querySelector<HTMLButtonElement>("#reset-btn");
   const exampleBtn = appRoot.querySelector<HTMLButtonElement>("#example-btn");
+  const createRoomBtn = appRoot.querySelector<HTMLButtonElement>("#create-room-btn");
+  const newRoomInput = appRoot.querySelector<HTMLInputElement>("#new-room-input");
+  const roomSelectButtons = appRoot.querySelectorAll<HTMLButtonElement>(".room-select-btn");
+  const roomDeleteButtons = appRoot.querySelectorAll<HTMLButtonElement>(".room-delete-btn");
   const seatMap = appRoot.querySelector<SVGSVGElement>("#seat-map");
+
+  if (createRoomBtn) {
+    createRoomBtn.addEventListener("click", () => {
+      onCreateSala(newRoomInput?.value ?? "");
+      if (newRoomInput) newRoomInput.value = "";
+    });
+  }
+
+  if (newRoomInput) {
+    newRoomInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      onCreateSala(newRoomInput.value);
+      newRoomInput.value = "";
+    });
+  }
+
+  roomSelectButtons.forEach((button) => {
+    const salaId = button.dataset.roomId;
+    if (!salaId) return;
+
+    button.addEventListener("click", () => onSelectSala(salaId));
+  });
+
+  roomDeleteButtons.forEach((button) => {
+    const salaId = button.dataset.roomId;
+    if (!salaId) return;
+
+    button.addEventListener("click", () => onDeleteSala(salaId));
+  });
 
   if (resetBtn) {
     resetBtn.addEventListener("click", onReset);
