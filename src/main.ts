@@ -12,6 +12,14 @@ type CinemaState = {
   activeSalaId: string;
 };
 
+type ConfirmDialogState = {
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText: string;
+  onConfirm: () => void;
+};
+
 const TEST_FILAS = 8;
 const TEST_COLUMNAS = 10;
 const STORAGE_KEY = "cinema-seat-state-v1";
@@ -85,6 +93,7 @@ if (typeof document !== "undefined") {
     let salas: Sala[] = [];
     let activeSalaId = "";
     let toastTimeout: ReturnType<typeof window.setTimeout> | null = null;
+    let confirmDialog: ConfirmDialogState | null = null;
 
     // Crea una sala vacia con todos los asientos en estado libre (0).
     function createEmptyMatrix(): number[][] {
@@ -158,6 +167,24 @@ if (typeof document !== "undefined") {
       toastTimeout = window.setTimeout(() => {
         toast.classList.remove("toast-show");
       }, 2600);
+    }
+
+    function openConfirmDialog(dialog: ConfirmDialogState) {
+      confirmDialog = dialog;
+      render();
+    }
+
+    function cancelConfirmDialog() {
+      confirmDialog = null;
+      render();
+    }
+
+    function confirmDialogAction() {
+      if (!confirmDialog) return;
+
+      const action = confirmDialog.onConfirm;
+      confirmDialog = null;
+      action();
     }
 
     function loadState() {
@@ -278,10 +305,20 @@ if (typeof document !== "undefined") {
         asientos: salaActiva.asientos,
         salas: salas.map(sala => ({ id: sala.id, nombre: sala.nombre })),
         activeSalaId,
+        confirmDialog: confirmDialog
+          ? {
+            title: confirmDialog.title,
+            message: confirmDialog.message,
+            confirmText: confirmDialog.confirmText,
+            cancelText: confirmDialog.cancelText,
+          }
+          : null,
         occupied,
         free,
         total,
         suggestion: findTwoContiguousSeats(),
+        onConfirmDialogAccept: confirmDialogAction,
+        onConfirmDialogCancel: cancelConfirmDialog,
         onSelectSala: (salaId: string) => {
           const exists = salas.some(sala => sala.id === salaId);
           if (!exists) {
@@ -322,26 +359,28 @@ if (typeof document !== "undefined") {
             return;
           }
 
-          const shouldDelete = window.confirm(`Quieres eliminar la sala \"${sala.nombre}\"?`);
-          if (!shouldDelete) {
-            showToast("Eliminacion cancelada.");
-            return;
-          }
+          openConfirmDialog({
+            title: "Eliminar sala",
+            message: `Vas a eliminar la sala \"${sala.nombre}\". Esta accion no se puede deshacer.`,
+            confirmText: "Eliminar",
+            cancelText: "Cancelar",
+            onConfirm: () => {
+              const wasActiveSalaDeleted = activeSalaId === salaId;
+              salas = salas.filter(item => item.id !== salaId);
 
-          const wasActiveSalaDeleted = activeSalaId === salaId;
-          salas = salas.filter(item => item.id !== salaId);
+              if (wasActiveSalaDeleted) {
+                activeSalaId = salas[0].id;
+              }
 
-          if (wasActiveSalaDeleted) {
-            activeSalaId = salas[0].id;
-          }
-
-          saveState();
-          render();
-          if (wasActiveSalaDeleted) {
-            showToast(`Sala eliminada. Activa: ${salas[0].nombre}.`);
-          } else {
-            showToast(`Sala eliminada: ${sala.nombre}.`);
-          }
+              saveState();
+              render();
+              if (wasActiveSalaDeleted) {
+                showToast(`Sala eliminada. Activa: ${salas[0].nombre}.`);
+              } else {
+                showToast(`Sala eliminada: ${sala.nombre}.`);
+              }
+            },
+          });
         },
         onReset: () => {
           const salaSeleccionada = getActiveSala();
@@ -356,15 +395,18 @@ if (typeof document !== "undefined") {
 
           if (isReserved) {
             const seatCode = `${String.fromCharCode(65 + fila)}${columna + 1}`;
-            const shouldRelease = window.confirm(`El asiento ${seatCode} esta ocupado. Quieres liberarlo?`);
 
-            if (shouldRelease) {
-              const releaseMessage = liberarAsiento(fila, columna);
-              render();
-              showToast(releaseMessage);
-            } else {
-              showToast("Operacion cancelada: el asiento se mantiene reservado.");
-            }
+            openConfirmDialog({
+              title: "Liberar asiento",
+              message: `El asiento ${seatCode} esta ocupado. Quieres liberarlo?`,
+              confirmText: "Liberar",
+              cancelText: "Cancelar",
+              onConfirm: () => {
+                const releaseMessage = liberarAsiento(fila, columna);
+                render();
+                showToast(releaseMessage);
+              },
+            });
             return;
           }
 
