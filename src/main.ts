@@ -1,9 +1,20 @@
 import { renderCinemaApp } from "./renderCinemaApp";
 
 type SeatMatrix = number[][];
+type Sala = {
+  id: string;
+  nombre: string;
+  asientos: SeatMatrix;
+};
+
+type CinemaState = {
+  salas: Sala[];
+  activeSalaId: string;
+};
 
 const TEST_FILAS = 8;
 const TEST_COLUMNAS = 10;
+const STORAGE_KEY = "cinema-seat-state-v1";
 
 // Imprime una matriz de asientos 8x10 con cabeceras de filas (A-H) y columnas (1-10).
 function printCinemaSeatingMatrix(matrix: SeatMatrix): void {
@@ -71,7 +82,8 @@ if (typeof document !== "undefined") {
     const numeroFilas = 8;
     const numeroColumnas = 10;
 
-    let asientos: number[][] = [];
+    let salas: Sala[] = [];
+    let activeSalaId = "";
     let mensaje = "Pulsa sobre un asiento libre para reservarlo.";
 
     // Crea una sala vacia con todos los asientos en estado libre (0).
@@ -93,9 +105,86 @@ if (typeof document !== "undefined") {
       ];
     }
 
-    // Inicializa la matriz de asientos, vacia o con datos de ejemplo.
-    function initAsientos(useExample = false) {
-      asientos = useExample ? createExampleMatrix() : createEmptyMatrix();
+    // Valida una matriz de asientos 8x10 usando valores 0 y 1.
+    function isValidSeatMatrix(matrix: unknown): matrix is SeatMatrix {
+      if (!Array.isArray(matrix) || matrix.length !== numeroFilas) return false;
+
+      return matrix.every(
+        row => Array.isArray(row)
+          && row.length === numeroColumnas
+          && row.every(value => value === 0 || value === 1),
+      );
+    }
+
+    function createSala(nombre: string, useExample = false): Sala {
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        nombre,
+        asientos: useExample ? createExampleMatrix() : createEmptyMatrix(),
+      };
+    }
+
+    function getActiveSala(): Sala {
+      const sala = salas.find(item => item.id === activeSalaId);
+      if (sala) return sala;
+
+      activeSalaId = salas[0].id;
+      return salas[0];
+    }
+
+    function saveState() {
+      const state: CinemaState = {
+        salas,
+        activeSalaId,
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      const rawState = localStorage.getItem(STORAGE_KEY);
+
+      if (!rawState) {
+        const salaInicial = createSala("Sala 1", true);
+        salas = [salaInicial];
+        activeSalaId = salaInicial.id;
+        saveState();
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(rawState) as Partial<CinemaState>;
+
+        const parsedSalas = Array.isArray(parsed.salas)
+          ? parsed.salas
+            .filter(sala => typeof sala?.id === "string" && typeof sala?.nombre === "string" && isValidSeatMatrix(sala?.asientos))
+            .map(sala => ({
+              id: sala.id,
+              nombre: sala.nombre,
+              asientos: sala.asientos,
+            }))
+          : [];
+
+        if (parsedSalas.length === 0) {
+          const salaInicial = createSala("Sala 1", true);
+          salas = [salaInicial];
+          activeSalaId = salaInicial.id;
+          saveState();
+          return;
+        }
+
+        salas = parsedSalas;
+
+        const parsedActiveSalaId = typeof parsed.activeSalaId === "string" ? parsed.activeSalaId : "";
+        const hasActiveSala = parsedSalas.some(sala => sala.id === parsedActiveSalaId);
+
+        activeSalaId = hasActiveSala ? parsedActiveSalaId : parsedSalas[0].id;
+      } catch {
+        const salaInicial = createSala("Sala 1", true);
+        salas = [salaInicial];
+        activeSalaId = salaInicial.id;
+        saveState();
+      }
     }
 
     // Reserva un asiento si esta libre y devuelve el mensaje de resultado.
@@ -105,10 +194,12 @@ if (typeof document !== "undefined") {
 
       if (isOutOfRange) return "Error: asiento fuera de rango.";
 
-      const isReserved = asientos[fila][columna] === 1;
+      const salaActiva = getActiveSala();
+      const isReserved = salaActiva.asientos[fila][columna] === 1;
       if (isReserved) return "Error: el asiento ya esta ocupado.";
 
-      asientos[fila][columna] = 1;
+      salaActiva.asientos[fila][columna] = 1;
+      saveState();
       return `Reservado: fila ${String.fromCharCode(65 + fila)}, asiento ${columna + 1}.`;
     }
 
@@ -119,16 +210,19 @@ if (typeof document !== "undefined") {
 
       if (isOutOfRange) return "Error: asiento fuera de rango.";
 
-      const isReserved = asientos[fila][columna] === 1;
+      const salaActiva = getActiveSala();
+      const isReserved = salaActiva.asientos[fila][columna] === 1;
       if (!isReserved) return "Error: el asiento ya esta libre.";
 
-      asientos[fila][columna] = 0;
+      salaActiva.asientos[fila][columna] = 0;
+      saveState();
       return `Liberado: fila ${String.fromCharCode(65 + fila)}, asiento ${columna + 1}.`;
     }
 
     // Calcula el resumen de ocupacion actual de la sala.
     function getCurrentStatus(): [number, number, number] {
-      const occupied = asientos.flat().filter(valor => valor === 1).length;
+      const salaActiva = getActiveSala();
+      const occupied = salaActiva.asientos.flat().filter(valor => valor === 1).length;
       const total = numeroFilas * numeroColumnas;
       const free = total - occupied;
 
@@ -137,9 +231,11 @@ if (typeof document !== "undefined") {
 
     // Busca la primera pareja de asientos contiguos libres en horizontal.
     function findTwoContiguousSeats(): [number, number][] | null {
+      const salaActiva = getActiveSala();
+
       for (let i = 0; i < numeroFilas; i++) {
         for (let j = 0; j < numeroColumnas - 1; j++) {
-          if (asientos[i][j] === 0 && asientos[i][j + 1] === 0) {
+          if (salaActiva.asientos[i][j] === 0 && salaActiva.asientos[i][j + 1] === 0) {
             return [
               [i, j],
               [i, j + 1],
@@ -154,29 +250,100 @@ if (typeof document !== "undefined") {
     // Recalcula estado y delega el pintado de toda la UI al modulo de render.
     function render() {
       const [ occupied, free, total ] = getCurrentStatus();
+      const salaActiva = getActiveSala();
 
       renderCinemaApp({
         appRoot,
         numeroFilas,
         numeroColumnas,
-        asientos,
+        asientos: salaActiva.asientos,
         mensaje,
+        salas: salas.map(sala => ({ id: sala.id, nombre: sala.nombre })),
+        activeSalaId,
         occupied,
         free,
         total,
         suggestion: findTwoContiguousSeats(),
+        onSelectSala: (salaId: string) => {
+          const exists = salas.some(sala => sala.id === salaId);
+          if (!exists) {
+            mensaje = "Error: la sala seleccionada no existe.";
+            render();
+            return;
+          }
+
+          activeSalaId = salaId;
+          const selectedSala = getActiveSala();
+          mensaje = `Sala activa: ${selectedSala.nombre}.`;
+          saveState();
+          render();
+        },
+        onCreateSala: (nombre: string) => {
+          const roomName = nombre.trim();
+
+          if (!roomName) {
+            mensaje = "Escribe un nombre para crear la sala.";
+            render();
+            return;
+          }
+
+          const newSala = createSala(roomName, false);
+          salas.push(newSala);
+          activeSalaId = newSala.id;
+          mensaje = `Sala creada: ${newSala.nombre}.`;
+          saveState();
+          render();
+        },
+        onDeleteSala: (salaId: string) => {
+          const sala = salas.find(item => item.id === salaId);
+          if (!sala) {
+            mensaje = "Error: la sala no existe.";
+            render();
+            return;
+          }
+
+          if (salas.length === 1) {
+            mensaje = "No puedes eliminar la unica sala disponible.";
+            render();
+            return;
+          }
+
+          const shouldDelete = window.confirm(`Quieres eliminar la sala \"${sala.nombre}\"?`);
+          if (!shouldDelete) {
+            mensaje = "Eliminacion cancelada.";
+            render();
+            return;
+          }
+
+          salas = salas.filter(item => item.id !== salaId);
+
+          if (activeSalaId === salaId) {
+            activeSalaId = salas[0].id;
+            mensaje = `Sala eliminada. Activa: ${salas[0].nombre}.`;
+          } else {
+            mensaje = `Sala eliminada: ${sala.nombre}.`;
+          }
+
+          saveState();
+          render();
+        },
         onReset: () => {
-          initAsientos(false);
-          mensaje = "Sala restablecida: todos los asientos estan libres.";
+          const salaSeleccionada = getActiveSala();
+          salaSeleccionada.asientos = createEmptyMatrix();
+          mensaje = `Sala ${salaSeleccionada.nombre} restablecida: todos los asientos estan libres.`;
+          saveState();
           render();
         },
         onLoadExample: () => {
-          initAsientos(true);
-          mensaje = "Se cargo la distribucion de ejemplo.";
+          const salaSeleccionada = getActiveSala();
+          salaSeleccionada.asientos = createExampleMatrix();
+          mensaje = `Se cargo la distribucion de ejemplo en ${salaSeleccionada.nombre}.`;
+          saveState();
           render();
         },
         onSeatClick: (fila: number, columna: number) => {
-          const isReserved = asientos[fila][columna] === 1;
+          const salaSeleccionada = getActiveSala();
+          const isReserved = salaSeleccionada.asientos[fila][columna] === 1;
 
           if (isReserved) {
             const seatCode = `${String.fromCharCode(65 + fila)}${columna + 1}`;
@@ -195,7 +362,7 @@ if (typeof document !== "undefined") {
       });
     }
 
-    initAsientos(true);
+    loadState();
     render();
   });
 }
